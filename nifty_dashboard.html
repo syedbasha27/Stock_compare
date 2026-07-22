@@ -429,7 +429,7 @@ document.getElementById("toDate").onchange   = (e)=>{ rangeTo = e.target.value; 
 /* =========================================================================
    DATA LAYER
    ========================================================================= */
-const API_BASE = "http://localhost:8000";
+const API_BASE = "https://stock-compare-1.onrender.com";
 
 function cacheKey(name){ return `nse_idx_cache::${name}::${rangeFrom}_${rangeTo}`; }
 function readCache(name){
