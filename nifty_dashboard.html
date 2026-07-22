@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NSE Index Analytics — Broad Market Comparison</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#F3F4F7;
+    --panel:#FFFFFF;
+    --panel-2:#EEF0F4;
+    --line:#E1E5EC;
+    --text:#141B26;
+    --muted:#5C6676;
+    --muted-2:#8B93A3;
+    --up:#0F7B5C;
+    --down:#B23A2E;
+    --amber:#A8781F;
+    --accent:#1B3A6B;
+    --accent-soft:#E9EDF5;
+    --radius:12px;
+    --mono:'IBM Plex Mono', monospace;
+    --disp:'Fraunces', serif;
+    --body:'Inter', sans-serif;
+    --shadow: 0 1px 2px rgba(20,27,38,.04), 0 8px 24px rgba(20,27,38,.05);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--body);
+    min-height:100vh;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{ background:var(--accent); color:#fff; }
+
+  /* ---------- Masthead / ticker / clock ---------- */
+  .masthead{ background:var(--text); color:#fff; display:flex; align-items:stretch; }
+  .ticker-wrap{ overflow:hidden; white-space:nowrap; position:relative; border-bottom:1px solid rgba(255,255,255,.08); flex:1 1 auto; min-width:0; }
+  .ticker-wrap::before, .ticker-wrap::after{ content:""; position:absolute; top:0; bottom:0; width:56px; z-index:2; pointer-events:none; }
+  .ticker-wrap::before{ left:0; background:linear-gradient(90deg, var(--text), transparent); }
+  .ticker-wrap::after{ right:0; background:linear-gradient(270deg, var(--text), transparent); }
+  .ticker-track{ display:inline-flex; animation:scroll-left 46s linear infinite; padding:8px 0; }
+  .ticker-wrap:hover .ticker-track{ animation-play-state:paused; }
+  .ticker-item{ font-family:var(--mono); font-size:11.5px; color:rgba(255,255,255,.62); padding:0 20px; border-right:1px solid rgba(255,255,255,.12); display:inline-flex; align-items:center; gap:7px; }
+  .ticker-item .fallback-tag{ color:rgba(255,255,255,.35); }
+  .dot{ width:6px; height:6px; border-radius:50%; display:inline-block; flex-shrink:0; }
+  @keyframes scroll-left{ from{transform:translateX(0);} to{transform:translateX(-50%);} }
+  .clock{
+    flex:0 0 auto; display:flex; align-items:center; gap:8px; padding:0 18px;
+    border-bottom:1px solid rgba(255,255,255,.08); border-left:1px solid rgba(255,255,255,.1);
+    font-family:var(--mono); font-size:11.5px; color:rgba(255,255,255,.78); white-space:nowrap;
+  }
+  .clock .live-dot{ width:6px; height:6px; border-radius:50%; background:var(--up); animation:pulse 2s ease infinite; }
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:.35;} }
+
+  /* ---------- Layout ---------- */
+  .wrap{ max-width:1180px; margin:0 auto; padding:38px 24px 80px; }
+  header.hero{ margin-bottom:30px; animation:fadeUp .5s ease both; }
+  .eyebrow{ font-family:var(--mono); font-size:11.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--accent); margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+  .eyebrow::before{ content:""; width:18px; height:2px; background:var(--amber); display:inline-block; }
+  h1{ font-family:var(--disp); font-weight:600; font-size:clamp(30px,4vw,44px); margin:0 0 12px; letter-spacing:-0.01em; color:var(--text); }
+  .sub{ color:var(--muted); font-size:15px; max-width:660px; }
+  .sub code{ font-family:var(--mono); background:var(--panel-2); border:1px solid var(--line); padding:1px 6px; border-radius:5px; font-size:12.5px; color:var(--text); }
+
+  .panel{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:24px; margin-bottom:20px; box-shadow:var(--shadow); animation:fadeUp .5s ease both; }
+  .panel h2{ font-family:var(--disp); font-size:19px; margin:0 0 4px; font-weight:600; }
+  .panel .desc{ color:var(--muted); font-size:13px; margin:0 0 16px; }
+  .panel .note{ color:var(--muted-2); font-size:11.5px; margin-top:10px; font-style:italic; }
+
+  /* ---------- Fixed selects ---------- */
+  .selects-row{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media(max-width:640px){ .selects-row{ grid-template-columns:1fr; } }
+  .field label{ display:block; font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted-2); margin-bottom:7px; font-family:var(--mono); }
+  .fake-select{ width:100%; background:var(--panel-2); border:1px solid var(--line); color:var(--muted); padding:11px 13px; border-radius:8px; font-size:14px; display:flex; align-items:center; justify-content:space-between; cursor:not-allowed; }
+  .fake-select b{ color:var(--text); font-weight:500; }
+  .fake-select .lock{ font-size:10.5px; color:var(--muted-2); font-family:var(--mono); border:1px solid var(--line); padding:2px 6px; border-radius:4px; }
+
+  /* ---------- Date range panel ---------- */
+  .range-row{ display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap; }
+  .range-row .field{ min-width:140px; }
+  .range-row input[type="date"], .range-select{
+    background:var(--panel-2); border:1px solid var(--line); color:var(--text);
+    padding:9px 11px; border-radius:8px; font-size:13.5px; font-family:var(--mono); cursor:pointer;
+  }
+  .range-row input[type="date"]:disabled{ opacity:.45; cursor:not-allowed; }
+  .range-presets{ display:flex; gap:6px; flex-wrap:wrap; }
+  .preset-btn{ background:var(--panel); border:1px solid var(--line); color:var(--muted); padding:6px 11px; border-radius:16px; font-size:12px; cursor:pointer; font-family:var(--body); font-weight:500; }
+  .preset-btn.active{ background:var(--accent); color:#fff; border-color:var(--accent); }
+  .preset-btn:hover:not(.active){ border-color:var(--accent); color:var(--accent); }
+
+  /* ---------- Index pills ---------- */
+  .pill-toolbar{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+  .btn-mini{ background:var(--panel); border:1px solid var(--line); color:var(--muted); padding:7px 14px; border-radius:20px; font-size:12.5px; cursor:pointer; transition:all .15s ease; font-family:var(--body); font-weight:500; }
+  .btn-mini:hover{ border-color:var(--accent); color:var(--accent); }
+  .selected-count{ margin-left:auto; font-family:var(--mono); font-size:12px; color:var(--muted-2); }
+
+  .pill-grid{ display:flex; flex-wrap:wrap; gap:9px; }
+  .pill{ position:relative; border:1.5px solid var(--line); background:var(--panel); border-radius:20px; padding:8px 14px 8px 12px; font-size:13px; cursor:pointer; display:flex; align-items:center; gap:8px; user-select:none; transition:transform .12s ease, border-color .15s ease, background .15s ease; color:var(--muted); font-weight:500; }
+  .pill:hover{ transform:translateY(-1px); border-color:var(--muted-2); }
+  .pill .swatch{ width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+  .pill.active{ color:var(--text); background:var(--accent-soft); }
+  .pill .status{ font-family:var(--mono); font-size:13px; line-height:1; cursor:default; }
+  .pill .status[data-clickable="1"]{ cursor:pointer; }
+
+  .btn-primary{ background:var(--accent); color:#fff; border:1px solid var(--accent); padding:11px 20px; font-size:13.5px; border-radius:8px; cursor:pointer; font-family:var(--body); font-weight:600; transition:background .15s ease, transform .1s ease; }
+  .btn-primary:hover{ background:#152E54; }
+  .btn-primary:active{ transform:scale(.98); }
+
+  /* ---------- Toggle chips (column / series visibility) ---------- */
+  .toggle-chip-row{ display:flex; flex-wrap:wrap; gap:7px; margin-bottom:14px; }
+  .toggle-chip{ border:1.5px solid var(--line); background:var(--panel-2); color:var(--muted-2); padding:5px 11px; border-radius:14px; font-size:11.5px; cursor:pointer; font-family:var(--mono); user-select:none; }
+  .toggle-chip.on{ background:var(--accent-soft); color:var(--text); border-color:var(--accent); }
+
+  /* ---------- Stat cards ---------- */
+  .stat-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; margin-bottom:20px; box-shadow:var(--shadow); }
+  .stat-card{ background:var(--panel); padding:20px 18px; animation:fadeUp .4s ease both; }
+  .stat-card .label{ font-size:10.5px; color:var(--muted-2); text-transform:uppercase; letter-spacing:.07em; font-family:var(--mono); margin-bottom:9px; }
+  .stat-card .value{ font-family:var(--disp); font-size:25px; font-weight:600; }
+  .stat-card .value.up{ color:var(--up); }
+  .stat-card .value.down{ color:var(--down); }
+  .stat-card .foot{ font-size:12px; color:var(--muted); margin-top:5px; font-weight:500; }
+
+  /* ---------- Chart panel ---------- */
+  .chart-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; flex-wrap:wrap; gap:10px; }
+  .toggle-group{ display:flex; gap:3px; background:var(--panel-2); padding:3px; border-radius:8px; border:1px solid var(--line); }
+  .toggle-group button{ background:transparent; border:none; color:var(--muted); padding:6px 13px; border-radius:6px; font-size:12.5px; cursor:pointer; font-family:var(--body); font-weight:500; }
+  .toggle-group button.active{ background:var(--accent); color:#fff; }
+  .chart-box{ position:relative; height:340px; margin-top:16px; }
+  .chart-box.small{ height:250px; }
+  .chart-box.tiny{ height:210px; }
+  .indiv-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:16px; margin-top:6px; }
+  .indiv-card{ background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:16px; animation:fadeUp .4s ease both; }
+  .indiv-head{ display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:600; margin-bottom:2px; flex-wrap:wrap; }
+  .indiv-head .foot-stats{ margin-left:auto; font-family:var(--mono); font-size:11px; color:var(--muted); font-weight:400; }
+  .benchmark-key{ font-size:10.5px; color:var(--muted-2); font-family:var(--mono); font-weight:400; }
+
+  /* ---------- Table ---------- */
+  table{ width:100%; border-collapse:collapse; font-size:13.5px; }
+  th,td{ text-align:right; padding:11px 12px; border-bottom:1px solid var(--line); font-family:var(--mono); white-space:nowrap; }
+  th:first-child, td:first-child{ text-align:left; font-family:var(--body); }
+  th{ color:var(--muted-2); font-weight:600; font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; }
+  tbody tr{ transition:background .15s ease; }
+  tbody tr:hover{ background:var(--panel-2); }
+  .name-cell{ display:flex; align-items:center; gap:9px; font-weight:500; }
+  .na{ color:var(--muted-2); }
+
+  /* ---------- Sector matrix ---------- */
+  .matrix-wrap{ overflow-x:auto; }
+  .matrix-cell-fill{ display:inline-block; height:6px; border-radius:3px; background:var(--accent); vertical-align:middle; margin-right:6px; }
+
+  /* ---------- States ---------- */
+  .empty-state{ text-align:center; padding:54px 20px; color:var(--muted); }
+  .empty-state .icon{ font-size:30px; margin-bottom:12px; }
+  .status-line{ display:flex; flex-wrap:wrap; gap:9px; margin-top:16px; }
+  .status-chip{ font-family:var(--mono); font-size:11.5px; padding:5px 10px; border-radius:6px; background:var(--panel-2); border:1px solid var(--line); color:var(--muted); display:flex; align-items:center; gap:6px; }
+  .status-chip .dot.ok{ background:var(--up); }
+  .status-chip .dot.warn{ background:var(--amber); }
+  .status-chip .dot.err{ background:var(--down); }
+  .status-chip button{ border:none; background:none; color:var(--accent); font-family:var(--mono); font-size:11px; cursor:pointer; padding:0; margin-left:2px; text-decoration:underline; }
+
+  .skel{ background:linear-gradient(90deg, var(--panel-2) 25%, #E3E7EE 37%, var(--panel-2) 63%); background-size:400% 100%; animation:shimmer 1.4s ease infinite; border-radius:6px; }
+  @keyframes shimmer{ 0%{background-position:100% 0;} 100%{background-position:0 0;} }
+
+  .diag{ font-family:var(--mono); font-size:11px; color:var(--muted-2); margin-top:10px; }
+  .diag summary{ cursor:pointer; color:var(--muted); }
+
+  footer{ text-align:center; color:var(--muted-2); font-size:12px; padding:30px 0 10px; }
+
+  @keyframes fadeUp{ from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);} }
+  @media (prefers-reduced-motion: reduce){ .ticker-track{ animation:none; } *{ animation-duration:.01ms !important; transition-duration:.01ms !important; } }
+</style>
+</head>
+<body>
+
+<div class="masthead">
+  <div class="ticker-wrap"><div class="ticker-track" id="tickerTrack"></div></div>
+  <div class="clock"><span class="live-dot"></span><span id="clockText">—</span></div>
+</div>
+
+<div class="wrap">
+  <header class="hero">
+    <div class="eyebrow">NSE · Equity · Broad Market Indices</div>
+    <h1>Index Analytics</h1>
+    <p class="sub">Compare NSE broad-market indices on a full metric set, calendar-year returns, sector composition and top constituents — served by a local <code>FastAPI + yfinance</code> backend (see <code>/backend</code>).</p>
+  </header>
+
+  <div class="panel">
+    <div class="selects-row">
+      <div class="field">
+        <label>Index Type</label>
+        <div class="fake-select"><b>Equity</b><span class="lock">fixed</span></div>
+      </div>
+      <div class="field">
+        <label>Sub-Index Type</label>
+        <div class="fake-select"><b>Broad Market Indices</b><span class="lock">fixed</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Time window</h2>
+    <p class="desc">Pick a quick range, or choose Custom to set exact dates. Very short windows (1 Day / 10 Days) won't produce meaningful annualised metrics — those show as N/A rather than a misleading number.</p>
+    <div class="range-presets" id="rangePresets"></div>
+    <div class="range-row" style="margin-top:14px;">
+      <div class="field">
+        <label>From</label>
+        <input type="date" id="fromDate" disabled>
+      </div>
+      <div class="field">
+        <label>To</label>
+        <input type="date" id="toDate" disabled>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Select indices to compare</h2>
+    <p class="desc">Pick 2–8 indices. Each chip shows a status once you load — live, cached, or unavailable, with a one-click retry.</p>
+    <div class="pill-toolbar">
+      <button class="btn-mini" id="btnDefault">Default 3</button>
+      <button class="btn-mini" id="btnClear">Clear</button>
+      <span class="selected-count" id="selCount">0 of 21 selected</span>
+    </div>
+    <div class="pill-grid" id="pillGrid"></div>
+    <div style="margin-top:20px; display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+      <button class="btn-primary" id="btnLoad">Load &amp; compare →</button>
+      <span id="loadHint" style="font-size:12.5px; color:var(--muted-2);">Successful pulls cache locally for 12h.</span>
+    </div>
+    <div class="status-line" id="statusLine"></div>
+  </div>
+
+  <div id="results"></div>
+
+  <footer>Price-return series · Yahoo Finance / NSE via local backend · Sector &amp; company data best-effort from free sources · Not investment advice.</footer>
+</div>
+
+<script>
+/* =========================================================================
+   CONFIG
+   ========================================================================= */
+const RISK_FREE_RATE = 0.06;
+const MAX_SELECTABLE = 8;
+const CACHE_HOURS = 12;
+const MIN_TRADING_DAYS_FOR_ANNUALISED = 15; // below this, annualised metrics show N/A
+
+const PALETTE = ["#1B3A6B","#B23A2E","#0F7B5C","#A8781F","#6A4C93","#1C7293","#8E3B58","#4B5320"];
+
+const INDICES = [
+  { name:"NIFTY 50",            yahoo:"^NSEI" },
+  { name:"NIFTY NEXT 50",       yahoo:"^NSMIDCP" },
+  { name:"NIFTY 100",           yahoo:"^CNX100" },
+  { name:"NIFTY 200",           yahoo:"^CNX200" },
+  { name:"NIFTY 500",           yahoo:"^CRSLDX" },
+  { name:"NIFTY MIDCAP 50",     yahoo:"^NSEMDCP50" },
+  { name:"NIFTY MIDCAP 100",    yahoo:"NIFTY_MIDCAP_100.NS" },
+  { name:"NIFTY MIDCAP 150",    yahoo:"NIFTYMIDCAP150.NS" },
+  { name:"NIFTY MIDCAP SELECT", yahoo:null },
+  { name:"NIFTY SMALLCAP 50",   yahoo:"NIFTYSMLCAP50.NS" },
+  { name:"NIFTY SMALLCAP 100",  yahoo:"^CNXSC" },
+  { name:"NIFTY SMALLCAP 250",  yahoo:"NIFTYSMLCAP250.NS" },
+  { name:"NIFTY SMALLCAP 500",  yahoo:null },
+  { name:"NIFTY LARGEMIDCAP 250", yahoo:null },
+  { name:"NIFTY MIDSMALLCAP 400", yahoo:null },
+  { name:"NIFTY MIDSMALLCAP400 50:50", yahoo:null },
+  { name:"NIFTY MICROCAP 250",  yahoo:null },
+  { name:"NIFTY TOTAL MARKET",  yahoo:null },
+  { name:"NIFTY INDIA FPI 150", yahoo:null },
+  { name:"NIFTY500 LARGEMIDSMALL EQUAL-CAP WEIGHTED", yahoo:null },
+  { name:"NIFTY500 MULTICAP 50:25:25", yahoo:null },
+];
+INDICES.forEach((ix,i)=> ix.color = PALETTE[i % PALETTE.length]);
+const DEFAULT_SELECTION = ["NIFTY 50","NIFTY 100","NIFTY MIDCAP 100"];
+const BENCHMARK_NAME = "NIFTY 50";
+
+// Quick range presets. "days" is calendar days back from today.
+// 1M/5M/10M are read as months (an intraday minute-bar interpretation
+// doesn't fit a multi-index historical comparison, and free sources don't
+// support it reliably for index tickers anyway).
+const RANGE_PRESETS = [
+  { key:"1d",  label:"1 Day",    days:1 },
+  { key:"10d", label:"10 Days",  days:10 },
+  { key:"1m",  label:"1 Month",  days:30 },
+  { key:"5m",  label:"5 Months", days:152 },
+  { key:"10m", label:"10 Months",days:304 },
+  { key:"1y",  label:"1 Year",   days:365 },
+  { key:"3y",  label:"3 Years",  days:365*3 },
+  { key:"5y",  label:"5 Years",  days:365*5, default:true },
+  { key:"10y", label:"10 Years", days:365*10 },
+  { key:"custom", label:"Custom" },
+];
+
+/* =========================================================================
+   STATE
+   ========================================================================= */
+let selected = new Set(DEFAULT_SELECTION);
+let statusMap = {};
+let lastError = {};
+let growthChart, drawdownChart;
+let indivCharts = {};
+let hasRenderedOnce = false;
+let scaleMode = "linear";
+let activePreset = RANGE_PRESETS.find(p=>p.default).key;
+let rangeFrom, rangeTo; // ISO date strings, the range actually sent to the backend
+
+let metricVisibility = {
+  cagr:true, vol:true, sharpe:true, sortino:true, maxdd:true, calmar:true,
+  bestyear:true, worstyear:true, beta:true, corr:true, posdays:false,
+};
+let calYearVisible = new Set(); // index names currently shown in the calendar-year table; synced to `selected` on each load
+
+/* =========================================================================
+   LIVE CLOCK
+   ========================================================================= */
+function tickClock(){
+  const now = new Date();
+  const opts = { weekday:"short", day:"2-digit", month:"short", year:"numeric" };
+  const dateStr = now.toLocaleDateString("en-IN", opts);
+  const timeStr = now.toLocaleTimeString("en-IN", { hour:"2-digit", minute:"2-digit", second:"2-digit", hour12:true });
+  document.getElementById("clockText").textContent = `${dateStr} · ${timeStr} IST`;
+}
+tickClock();
+setInterval(tickClock, 1000);
+
+/* =========================================================================
+   UI: ticker + pills
+   ========================================================================= */
+function renderTicker(){
+  const items = INDICES.map(ix =>
+    `<span class="ticker-item"><span class="dot" style="background:${ix.color}"></span>${ix.name}${ix.yahoo? "" : " <span class='fallback-tag'>· fallback</span>"}</span>`
+  ).join("");
+  document.getElementById("tickerTrack").innerHTML = items + items;
+}
+
+function renderPills(){
+  const grid = document.getElementById("pillGrid");
+  grid.innerHTML = "";
+  INDICES.forEach(ix=>{
+    const el = document.createElement("div");
+    const isActive = selected.has(ix.name);
+    el.className = "pill" + (isActive ? " active":"");
+    el.style.borderColor = isActive ? ix.color : "";
+    el.innerHTML = `<span class="swatch" style="background:${ix.color}"></span>${ix.name}
+      <span class="status" id="stat-${cssSafe(ix.name)}"></span>`;
+    el.querySelector(".swatch").parentElement.addEventListener("click", (e)=>{
+      if(e.target.closest(".status[data-clickable='1']")) return;
+      togglePill(ix.name);
+    });
+    grid.appendChild(el);
+  });
+  updateStatusBadges();
+  document.getElementById("selCount").textContent = `${selected.size} of ${INDICES.length} selected`;
+}
+
+function cssSafe(s){ return s.replace(/[^a-z0-9]/gi,"_"); }
+
+function togglePill(name){
+  if(selected.has(name)){ selected.delete(name); }
+  else{
+    if(selected.size >= MAX_SELECTABLE){ flashHint(`Max ${MAX_SELECTABLE} indices at once — deselect one first.`); return; }
+    selected.add(name);
+  }
+  renderPills();
+}
+
+function flashHint(msg, isErr){
+  const hint = document.getElementById("loadHint");
+  const prev = hint.textContent;
+  hint.textContent = msg; hint.style.color = isErr ? "var(--down)" : "var(--amber)";
+  setTimeout(()=>{ hint.textContent = prev; hint.style.color = "var(--muted-2)"; }, 2600);
+}
+
+function updateStatusBadges(){
+  INDICES.forEach(ix=>{
+    const badge = document.getElementById(`stat-${cssSafe(ix.name)}`);
+    if(!badge) return;
+    const s = statusMap[ix.name];
+    badge.textContent = s === "ok" ? "●" : s === "warn" ? "△" : s === "err" ? "↻" : "";
+    badge.style.color = s === "ok" ? "var(--up)" : s === "warn" ? "var(--amber)" : s === "err" ? "var(--down)" : "";
+    badge.title = s === "err" ? `Failed: ${lastError[ix.name] || "unknown error"} — click to retry` : (s === "ok" ? "Live" : s === "warn" ? "From local cache" : "");
+    badge.setAttribute("data-clickable", s === "err" ? "1" : "0");
+    badge.onclick = s === "err" ? (e)=>{ e.stopPropagation(); retryOne(ix.name); } : null;
+  });
+}
+
+document.getElementById("btnDefault").onclick = ()=>{ selected = new Set(DEFAULT_SELECTION); renderPills(); };
+document.getElementById("btnClear").onclick   = ()=>{ selected = new Set(); renderPills(); };
+document.getElementById("btnLoad").onclick    = ()=> loadAndRender();
+
+/* =========================================================================
+   TIME WINDOW UI
+   ========================================================================= */
+function isoDate(d){ return d.toISOString().slice(0,10); }
+
+function applyPreset(key){
+  activePreset = key;
+  document.querySelectorAll(".preset-btn").forEach(b=> b.classList.toggle("active", b.dataset.key === key));
+  const isCustom = key === "custom";
+  document.getElementById("fromDate").disabled = !isCustom;
+  document.getElementById("toDate").disabled = !isCustom;
+
+  if(!isCustom){
+    const preset = RANGE_PRESETS.find(p=>p.key===key);
+    const to = new Date();
+    const from = new Date(); from.setDate(to.getDate() - preset.days);
+    rangeFrom = isoDate(from); rangeTo = isoDate(to);
+    document.getElementById("fromDate").value = rangeFrom;
+    document.getElementById("toDate").value = rangeTo;
+  }
+  if(hasRenderedOnce) loadAndRender();
+}
+
+function renderRangePresets(){
+  const el = document.getElementById("rangePresets");
+  el.innerHTML = RANGE_PRESETS.map(p=>`<button class="preset-btn${p.key===activePreset?' active':''}" data-key="${p.key}">${p.label}</button>`).join("");
+  el.querySelectorAll(".preset-btn").forEach(btn=>{
+    btn.onclick = ()=> applyPreset(btn.dataset.key);
+  });
+}
+
+document.getElementById("fromDate").onchange = (e)=>{ rangeFrom = e.target.value; if(activePreset==="custom" && hasRenderedOnce) loadAndRender(); };
+document.getElementById("toDate").onchange   = (e)=>{ rangeTo = e.target.value; if(activePreset==="custom" && hasRenderedOnce) loadAndRender(); };
+
+/* =========================================================================
+   DATA LAYER
+   ========================================================================= */
+const API_BASE = "http://localhost:8000";
+
+function cacheKey(name){ return `nse_idx_cache::${name}::${rangeFrom}_${rangeTo}`; }
+function readCache(name){
+  try{
+    const raw = localStorage.getItem(cacheKey(name));
+    if(!raw) return null;
+    const parsed = JSON.parse(raw);
+    if((Date.now() - parsed.ts) / 3600000 > CACHE_HOURS) return null;
+    return parsed.data;
+  }catch(e){ return null; }
+}
+function writeCache(name, data){ try{ localStorage.setItem(cacheKey(name), JSON.stringify({ ts: Date.now(), data })); }catch(e){} }
+
+async function fetchBatchFromBackend(names){
+  const url = `${API_BASE}/api/history?indices=${encodeURIComponent(names.join(","))}&start=${rangeFrom}&end=${rangeTo}`;
+  const res = await fetch(url);
+  if(!res.ok) throw new Error(`backend HTTP ${res.status}`);
+  return res.json();
+}
+
+async function getSeriesBatch(names, forceLiveSet){
+  forceLiveSet = forceLiveSet || new Set();
+  const out = {};
+  const toFetch = [];
+  for(const name of names){
+    if(!forceLiveSet.has(name)){
+      const cached = readCache(name);
+      if(cached){ statusMap[name] = "warn"; out[name] = cached; continue; }
+    }
+    toFetch.push(name);
+  }
+  if(!toFetch.length) return out;
+
+  try{
+    const batch = await fetchBatchFromBackend(toFetch);
+    for(const name of toFetch){
+      const entry = batch[name];
+      if(entry && !entry.error){
+        statusMap[name] = "ok";
+        writeCache(name, entry);
+        out[name] = entry;
+      }else{
+        statusMap[name] = "err";
+        lastError[name] = (entry && entry.error) || "no data returned";
+      }
+    }
+  }catch(e){
+    for(const name of toFetch){
+      statusMap[name] = "err";
+      lastError[name] = `backend unreachable: ${e.message} — is uvicorn running on ${API_BASE}?`;
+    }
+  }
+  return out;
+}
+
+async function retryOne(name){
+  statusMap[name] = undefined;
+  updateStatusBadges();
+  const result = await getSeriesBatch([name], new Set([name]));
+  updateStatusBadges();
+  if(result[name] && [...selected].every(n=>statusMap[n]==="ok"||statusMap[n]==="warn")){
+    loadAndRender(true);
+  }else{
+    renderStatusLine();
+  }
+}
+
+/* =========================================================================
+   METRICS
+   ========================================================================= */
+function dailyLogReturns(closes){
+  const rets = [];
+  for(let i=1;i<closes.length;i++) rets.push(Math.log(closes[i]/closes[i-1]));
+  return rets;
+}
+
+function computeFullMetrics(series, benchmarkSeries){
+  const { dates, closes } = series;
+  const n = closes.length;
+  const yearsSpan = (new Date(dates[n-1]) - new Date(dates[0])) / (365.25*24*3600*1000);
+  const longEnough = n >= MIN_TRADING_DAYS_FOR_ANNUALISED;
+
+  const cagr = longEnough ? Math.pow(closes[n-1]/closes[0], 1/Math.max(yearsSpan, 1/365)) - 1 : null;
+  const rets = dailyLogReturns(closes);
+  const mean = rets.reduce((a,b)=>a+b,0) / (rets.length||1);
+  const variance = rets.length>1 ? rets.reduce((a,b)=>a+(b-mean)**2,0)/(rets.length-1) : 0;
+  const vol = longEnough ? Math.sqrt(variance) * Math.sqrt(252) : null;
+
+  const downside = rets.filter(r=>r<0);
+  const downsideVar = downside.length>1 ? downside.reduce((a,b)=>a+b*b,0)/downside.length : 0;
+  const downsideDev = Math.sqrt(downsideVar) * Math.sqrt(252);
+  const sortino = (longEnough && downsideDev>0) ? (cagr - RISK_FREE_RATE) / downsideDev : null;
+
+  let peak = closes[0], maxDD = 0;
+  const ddSeries = closes.map(c=>{ peak=Math.max(peak,c); const dd=(c/peak)-1; maxDD=Math.min(maxDD,dd); return dd; });
+
+  const sharpe = (longEnough && vol>0) ? (cagr - RISK_FREE_RATE) / vol : null;
+  const calmar = (longEnough && maxDD<0) ? cagr / Math.abs(maxDD) : null;
+
+  const posDays = rets.length ? (rets.filter(r=>r>0).length / rets.length) * 100 : null;
+
+  const yearReturns = calendarYearReturns(series);
+  const yearValues = Object.values(yearReturns);
+  const bestYear = yearValues.length ? Math.max(...yearValues) : null;
+  const worstYear = yearValues.length ? Math.min(...yearValues) : null;
+
+  let beta = null, corr = null;
+  if(benchmarkSeries && benchmarkSeries.closes.length === closes.length && closes.length > 5){
+    const bRets = dailyLogReturns(benchmarkSeries.closes);
+    if(bRets.length === rets.length){
+      const bMean = bRets.reduce((a,b)=>a+b,0)/bRets.length;
+      let cov=0, bVar=0, aVar=0;
+      for(let i=0;i<rets.length;i++){
+        const dx = rets[i]-mean, dy = bRets[i]-bMean;
+        cov += dx*dy; bVar += dy*dy; aVar += dx*dx;
+      }
+      cov/=rets.length-1; bVar/=rets.length-1; aVar/=rets.length-1;
+      beta = bVar>0 ? cov/bVar : null;
+      corr = (Math.sqrt(aVar)*Math.sqrt(bVar))>0 ? cov/(Math.sqrt(aVar)*Math.sqrt(bVar)) : null;
+    }
+  }
+
+  return { cagr, vol, sharpe, sortino, maxDD, calmar, bestYear, worstYear, beta, corr, posDays, ddSeries, yearReturns, longEnough };
+}
+
+function calendarYearReturns(series){
+  const { dates, closes } = series;
+  const byYear = {};
+  dates.forEach((d,i)=>{
+    const y = d.slice(0,4);
+    if(!byYear[y]) byYear[y] = { first:closes[i], last:closes[i] };
+    else byYear[y].last = closes[i];
+  });
+  const out = {};
+  Object.keys(byYear).forEach(y=>{ out[y] = (byYear[y].last/byYear[y].first - 1) * 100; });
+  return out;
+}
+
+function rebase100(closes){ const base = closes[0]; return closes.map(c => (c/base)*100); }
+function fmtPct(v, digits){ return v==null ? '<span class="na">N/A</span>' : (v*100).toFixed(digits==null?2:digits)+"%"; }
+function fmtNum(v, digits){ return v==null ? '<span class="na">N/A</span>' : v.toFixed(digits==null?2:digits); }
+
+/* =========================================================================
+   RENDER PIPELINE
+   ========================================================================= */
+async function loadAndRender(silent){
+  const names = [...selected];
+  if(names.length < 2){ flashHint("Pick at least 2 indices to compare.", true); return; }
+  if(!rangeFrom || !rangeTo){ applyPreset(activePreset); }
+  if(!silent) renderLoadingState(names);
+
+  // Always also pull the benchmark (Nifty 50) for beta/correlation and the
+  // individual-chart overlay, even if the user didn't select it themselves.
+  const fetchNames = names.includes(BENCHMARK_NAME) ? names : [...names, BENCHMARK_NAME];
+  const results = await getSeriesBatch(fetchNames);
+  renderStatusLine();
+  updateStatusBadges();
+
+  const usable = names.filter(n=>results[n]);
+  if(!usable.length){
+    const reasons = names.map(n=>`<div>· <b>${n}</b>: ${lastError[n]||"unknown"}</div>`).join("");
+    document.getElementById("results").innerHTML = `
+      <div class="panel"><div class="empty-state">
+        <div class="icon">⚠</div>
+        <div><b>No live data could be fetched this time.</b></div>
+        <div style="font-size:13px;margin-top:8px;">Check that the backend is running (<code>uvicorn app:app --reload --port 8000</code> inside <code>/backend</code>), then click the ↻ on any chip above to retry it.</div>
+        <details class="diag" style="text-align:left; max-width:420px; margin:14px auto 0;"><summary>Diagnostic detail</summary>${reasons}</details>
+      </div></div>`;
+    return;
+  }
+
+  const aligned = alignSeries(usable, results);
+  const benchmarkRaw = results[BENCHMARK_NAME] || null;
+
+  calYearVisible = new Set(usable); // default: all currently-selected indices visible in the toggle-able panels
+
+  renderStats(usable, aligned, benchmarkRaw);
+  renderCharts(usable, aligned, benchmarkRaw);
+  renderFullMetricsTable(usable, aligned, benchmarkRaw);
+  renderCalendarYearReturns(usable, aligned);
+  loadSectorComposition(usable);
+  loadTopCompanies(usable);
+}
+
+function renderLoadingState(names){
+  document.getElementById("results").innerHTML = `
+    <div class="panel">
+      <h2>Fetching live data…</h2>
+      <div class="desc">Pulling ${names.length} series (plus NIFTY 50 as benchmark) from the backend.</div>
+      <div class="skel" style="height:14px;width:55%;margin-bottom:12px;"></div>
+      <div class="skel" style="height:220px;width:100%;"></div>
+    </div>`;
+}
+
+function renderStatusLine(){
+  const line = document.getElementById("statusLine");
+  line.innerHTML = [...selected].map(name=>{
+    const s = statusMap[name] || null;
+    const cls = s === "ok" ? "ok" : s === "warn" ? "warn" : s === "err" ? "err" : "warn";
+    const label = s === "ok" ? "live" : s === "warn" ? "cached" : s === "err" ? "unavailable" : "loading…";
+    const retry = s === "err" ? `<button onclick="retryOne('${name.replace(/'/g,"\\'")}')">retry</button>` : "";
+    return `<span class="status-chip"><span class="dot ${cls}"></span>${name} — ${label}${retry}</span>`;
+  }).join("");
+}
+
+function alignSeries(names, results){
+  const commonStart = names.map(n=>results[n].dates[0]).reduce((a,b)=> a>b?a:b);
+  const out = {};
+  names.forEach(n=>{ const {dates,closes}=results[n]; const idx=dates.findIndex(d=>d>=commonStart); out[n]={dates:dates.slice(idx),closes:closes.slice(idx)}; });
+  return out;
+}
+
+// Forward-filled lookup: given a benchmark series and a target list of
+// dates, returns the benchmark's closes aligned to those exact dates.
+function sliceBenchmarkToDates(benchmarkSeries, targetDates){
+  if(!benchmarkSeries) return null;
+  const map = {};
+  benchmarkSeries.dates.forEach((d,i)=>{ map[d] = benchmarkSeries.closes[i]; });
+  let lastKnown = benchmarkSeries.closes[0];
+  return targetDates.map(d=>{
+    if(map[d] != null) lastKnown = map[d];
+    return lastKnown;
+  });
+}
+
+/* =========================================================================
+   PANEL: top stat cards
+   ========================================================================= */
+function renderStats(names, aligned, benchmarkRaw){
+  const metrics = names.map(n => ({ name:n, ...computeFullMetrics(aligned[n], benchmarkRaw ? {closes: sliceBenchmarkToDates(benchmarkRaw, aligned[n].dates)} : null) }));
+  const withCagr = metrics.filter(m=>m.cagr!=null);
+  const best = withCagr.length ? withCagr.reduce((a,b)=> b.cagr>a.cagr?b:a) : null;
+  const bestSharpe = metrics.filter(m=>m.sharpe!=null).reduce((a,b)=> (!a||b.sharpe>a.sharpe)?b:a, null);
+  const worstDD = metrics.reduce((a,b)=> (!a||b.maxDD<a.maxDD)?b:a, null);
+  const mostVol = metrics.filter(m=>m.vol!=null).reduce((a,b)=> (!a||b.vol>a.vol)?b:a, null);
+  const cards = [
+    { label:"Best CAGR", value: best ? fmtPct(best.cagr,2) : "N/A", foot: best ? best.name : "range too short", cls:"up" },
+    { label:"Best Sharpe", value: bestSharpe ? fmtNum(bestSharpe.sharpe) : "N/A", foot: bestSharpe ? bestSharpe.name : "range too short", cls:"up" },
+    { label:"Deepest Drawdown", value: worstDD ? fmtPct(worstDD.maxDD,1) : "N/A", foot: worstDD ? worstDD.name : "", cls:"down" },
+    { label:"Most Volatile", value: mostVol ? fmtPct(mostVol.vol,1) : "N/A", foot: mostVol ? mostVol.name : "range too short", cls:"down" },
+  ];
+  document.getElementById("results").innerHTML = `
+    <div class="stat-grid">${cards.map(c=>`
+      <div class="stat-card"><div class="label">${c.label}</div><div class="value ${c.cls}">${c.value}</div><div class="foot">${c.foot}</div></div>`).join("")}
+    </div>
+    <div class="panel">
+      <div class="chart-head">
+        <div><h2>Growth of ₹100</h2><div class="desc">Rebased to the first common trading day across your selection.</div></div>
+        <div class="toggle-group"><button id="scaleLinear" class="active">Linear</button><button id="scaleLog">Log</button></div>
+      </div>
+      <div class="chart-box"><canvas id="growthCanvas"></canvas></div>
+    </div>
+    <div class="panel">
+      <h2>Drawdown</h2>
+      <div class="desc">Percentage below the running all-time high for the selected window.</div>
+      <div class="chart-box small"><canvas id="drawdownCanvas"></canvas></div>
+    </div>
+    <div class="panel">
+      <h2>Individual index charts</h2>
+      <div class="desc">Each index's actual level (left axis), with <b>NIFTY 50 rebased as a benchmark overlay</b> (dashed) for shape comparison.</div>
+      <div class="indiv-grid" id="indivGrid"></div>
+    </div>
+    <div class="panel" id="fullMetricsPanel"></div>
+    <div class="panel" id="calYearPanel"></div>
+    <div class="panel" id="sectorPanel">
+      <h2>Sector composition</h2>
+      <div class="desc">Loading sector breakdown…</div>
+    </div>
+    <div class="panel" id="topCompaniesPanel">
+      <h2>Top constituent companies</h2>
+      <div class="desc">Loading top companies…</div>
+    </div>`;
+  hasRenderedOnce = true;
+  document.getElementById("scaleLinear").onclick = ()=> setScale("linear");
+  document.getElementById("scaleLog").onclick = ()=> setScale("logarithmic");
+}
+
+function setScale(mode){
+  scaleMode = mode;
+  document.getElementById("scaleLinear").classList.toggle("active", mode==="linear");
+  document.getElementById("scaleLog").classList.toggle("active", mode==="logarithmic");
+  if(growthChart){ growthChart.options.scales.y.type = mode; growthChart.update(); }
+}
+
+/* =========================================================================
+   PANEL: comparison + individual charts
+   ========================================================================= */
+function renderCharts(names, aligned, benchmarkRaw){
+  const datasets = names.map(n=>{
+    const ix = INDICES.find(i=>i.name===n);
+    return { label:n, data: rebase100(aligned[n].closes), borderColor: ix.color, backgroundColor: ix.color, borderWidth:1.8, pointRadius:0, tension:0.15 };
+  });
+  if(growthChart) growthChart.destroy();
+  growthChart = new Chart(document.getElementById("growthCanvas"), { type:"line", data:{ labels: aligned[names[0]].dates, datasets }, options: chartOptions("₹ (rebased to 100)") });
+
+  const ddDatasets = names.map(n=>{
+    const ix = INDICES.find(i=>i.name===n);
+    const m = computeFullMetrics(aligned[n], null);
+    return { label:n, data:m.ddSeries.map(v=>v*100), borderColor:ix.color, backgroundColor:ix.color, borderWidth:1.5, pointRadius:0, tension:0.1 };
+  });
+  if(drawdownChart) drawdownChart.destroy();
+  drawdownChart = new Chart(document.getElementById("drawdownCanvas"), { type:"line", data:{ labels: aligned[names[0]].dates, datasets: ddDatasets }, options: chartOptions("drawdown %", "linear") });
+
+  renderIndividualCharts(names, aligned, benchmarkRaw);
+}
+
+function renderIndividualCharts(names, aligned, benchmarkRaw){
+  const grid = document.getElementById("indivGrid");
+  if(!grid) return;
+  grid.innerHTML = names.map(n=>{
+    const ix = INDICES.find(i=>i.name===n);
+    const m = computeFullMetrics(aligned[n], null);
+    const isBenchmark = n === BENCHMARK_NAME;
+    return `<div class="indiv-card">
+      <div class="indiv-head">
+        <span class="dot" style="background:${ix.color}"></span>${n}
+        <span class="foot-stats">CAGR ${fmtPct(m.cagr,1)} · Sharpe ${fmtNum(m.sharpe)}</span>
+        ${isBenchmark ? '' : '<span class="benchmark-key">— — NIFTY 50 benchmark</span>'}
+      </div>
+      <div class="chart-box small"><canvas id="indiv-${cssSafe(n)}"></canvas></div>
+    </div>`;
+  }).join("");
+
+  names.forEach(n=>{
+    const ix = INDICES.find(i=>i.name===n);
+    if(indivCharts[n]) indivCharts[n].destroy();
+    const canvas = document.getElementById(`indiv-${cssSafe(n)}`);
+    if(!canvas) return;
+
+    const dsets = [{
+      label:n, data: rebase100(aligned[n].closes), borderColor: ix.color, backgroundColor: ix.color + "26",
+      fill:true, borderWidth:1.6, pointRadius:0, tension:0.15
+    }];
+    if(benchmarkRaw && n !== BENCHMARK_NAME){
+      const benchSliced = sliceBenchmarkToDates(benchmarkRaw, aligned[n].dates);
+      dsets.push({
+        label:"NIFTY 50 (benchmark)", data: rebase100(benchSliced), borderColor:"#8B93A3",
+        borderDash:[5,4], borderWidth:1.4, pointRadius:0, tension:0.15, fill:false
+      });
+    }
+    indivCharts[n] = new Chart(canvas, {
+      type:"line",
+      data:{ labels: aligned[n].dates, datasets: dsets },
+      options: chartOptions("rebased to 100", "linear", true)
+    });
+  });
+}
+
+function chartOptions(yTitle, forceScale, hideLegend){
+  const yType = forceScale || scaleMode;
+  return {
+    responsive:true, maintainAspectRatio:false,
+    interaction:{ mode:"index", intersect:false },
+    animation:{ duration:600 },
+    plugins:{
+      legend:{ display: !hideLegend, labels:{ color:"#5C6676", usePointStyle:true, boxWidth:8, font:{ family:"Inter", size:11.5 } } },
+      tooltip:{ backgroundColor:"#141B26", borderColor:"#2A3446", borderWidth:1, titleColor:"#fff", bodyColor:"#D7DCE4", titleFont:{ family:"IBM Plex Mono", size:11 }, bodyFont:{ family:"IBM Plex Mono", size:11.5 } }
+    },
+    scales:{
+      x:{ grid:{ color:"#EBEDF2" }, ticks:{ color:"#8B93A3", maxTicksLimit:8, font:{ family:"IBM Plex Mono", size:10.5 } } },
+      y:{ type:yType, title:{ display:true, text:yTitle, color:"#8B93A3", font:{ size:11 } }, grid:{ color:"#EBEDF2" }, ticks:{ color:"#8B93A3", font:{ family:"IBM Plex Mono", size:10.5 } } }
+    }
+  };
+}
+
+/* =========================================================================
+   PANEL: full metric set (with column toggles)
+   ========================================================================= */
+const METRIC_DEFS = [
+  { key:"cagr",      label:"CAGR",           fmt:m=>fmtPct(m.cagr,2) },
+  { key:"vol",       label:"Volatility",     fmt:m=>fmtPct(m.vol,2) },
+  { key:"sharpe",    label:"Sharpe",         fmt:m=>fmtNum(m.sharpe) },
+  { key:"sortino",   label:"Sortino",        fmt:m=>fmtNum(m.sortino) },
+  { key:"maxdd",     label:"Max Drawdown",   fmt:m=>fmtPct(m.maxDD,1) },
+  { key:"calmar",    label:"Calmar",         fmt:m=>fmtNum(m.calmar) },
+  { key:"bestyear",  label:"Best Cal. Yr",   fmt:m=>m.bestYear==null?'<span class="na">N/A</span>':m.bestYear.toFixed(1)+"%" },
+  { key:"worstyear", label:"Worst Cal. Yr",  fmt:m=>m.worstYear==null?'<span class="na">N/A</span>':m.worstYear.toFixed(1)+"%" },
+  { key:"beta",      label:"Beta (vs N50)",  fmt:m=>fmtNum(m.beta) },
+  { key:"corr",      label:"Corr (vs N50)",  fmt:m=>fmtNum(m.corr) },
+  { key:"posdays",   label:"% Positive Days",fmt:m=>m.posDays==null?'<span class="na">N/A</span>':m.posDays.toFixed(1)+"%" },
+];
+
+function renderFullMetricsTable(names, aligned, benchmarkRaw){
+  const metricsByName = {};
+  names.forEach(n=>{
+    const bench = benchmarkRaw ? { closes: sliceBenchmarkToDates(benchmarkRaw, aligned[n].dates) } : null;
+    metricsByName[n] = computeFullMetrics(aligned[n], bench);
+  });
+
+  const panel = document.getElementById("fullMetricsPanel");
+  const chips = METRIC_DEFS.map(md=>`<span class="toggle-chip ${metricVisibility[md.key]?'on':''}" data-metric="${md.key}">${md.label}</span>`).join("");
+  const cols = METRIC_DEFS.filter(md=>metricVisibility[md.key]);
+  const rows = names.map(n=>{
+    const ix = INDICES.find(i=>i.name===n);
+    const m = metricsByName[n];
+    return `<tr><td><div class="name-cell"><span class="dot" style="background:${ix.color}"></span>${n}</div></td>${cols.map(md=>`<td>${md.fmt(m)}</td>`).join("")}</tr>`;
+  }).join("");
+
+  panel.innerHTML = `
+    <h2>Full metric set</h2>
+    <div class="desc">Toggle columns on/off. Sharpe/Sortino use a ${(RISK_FREE_RATE*100).toFixed(0)}% risk-free rate · Beta/Correlation computed against NIFTY 50 daily returns over the same window.</div>
+    <div class="toggle-chip-row" id="metricChips">${chips}</div>
+    <div style="overflow-x:auto;">
+      <table><thead><tr><th>Index</th>${cols.map(md=>`<th>${md.label}</th>`).join("")}</tr></thead>
+      <tbody>${rows}</tbody></table>
+    </div>
+    <div class="note">Metrics needing at least ${MIN_TRADING_DAYS_FOR_ANNUALISED} trading days show N/A on very short windows (1 Day / 10 Days) rather than an unstable annualised figure.</div>`;
+
+  panel.querySelectorAll(".toggle-chip").forEach(chip=>{
+    chip.onclick = ()=>{
+      const key = chip.dataset.metric;
+      metricVisibility[key] = !metricVisibility[key];
+      renderFullMetricsTable(names, aligned, benchmarkRaw);
+    };
+  });
+}
+
+/* =========================================================================
+   PANEL: calendar year returns (with index visibility toggles)
+   ========================================================================= */
+function renderCalendarYearReturns(names, aligned){
+  const panel = document.getElementById("calYearPanel");
+  const perIndexYears = {};
+  const allYears = new Set();
+  names.forEach(n=>{
+    perIndexYears[n] = calendarYearReturns(aligned[n]);
+    Object.keys(perIndexYears[n]).forEach(y=>allYears.add(y));
+  });
+  const years = [...allYears].sort((a,b)=>b.localeCompare(a));
+
+  const chips = names.map(n=>{
+    const ix = INDICES.find(i=>i.name===n);
+    const on = calYearVisible.has(n);
+    return `<span class="toggle-chip ${on?'on':''}" data-name="${n}" style="border-color:${on?ix.color:''}">${n}</span>`;
+  }).join("");
+
+  const visibleNames = names.filter(n=>calYearVisible.has(n));
+  const rows = years.map(y=>{
+    const cells = visibleNames.map(n=>{
+      const v = perIndexYears[n][y];
+      if(v==null) return `<td><span class="na">—</span></td>`;
+      const cls = v>=0 ? "up" : "down";
+      return `<td class="${cls}" style="color:var(--${cls})">${v.toFixed(1)}%</td>`;
+    }).join("");
+    return `<tr><td>${y}</td>${cells}</tr>`;
+  }).join("");
+
+  panel.innerHTML = `
+    <h2>Calendar year returns</h2>
+    <div class="desc">Close-to-close return within each calendar year (first/last years in range may be partial). Toggle which indices to show.</div>
+    <div class="toggle-chip-row" id="calYearChips">${chips}</div>
+    <div style="overflow-x:auto;">
+      <table><thead><tr><th>Year</th>${visibleNames.map(n=>`<th>${n}</th>`).join("")}</tr></thead>
+      <tbody>${rows}</tbody></table>
+    </div>`;
+
+  panel.querySelectorAll(".toggle-chip").forEach(chip=>{
+    chip.onclick = ()=>{
+      const name = chip.dataset.name;
+      if(calYearVisible.has(name)) calYearVisible.delete(name); else calYearVisible.add(name);
+      renderCalendarYearReturns(names, aligned);
+    };
+  });
+}
+
+/* =========================================================================
+   PANEL: sector composition matrix (backend call, non-blocking)
+   ========================================================================= */
+async function loadSectorComposition(names){
+  const panel = document.getElementById("sectorPanel");
+  try{
+    const res = await fetch(`${API_BASE}/api/sector-composition?indices=${encodeURIComponent(names.join(","))}`);
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    renderSectorMatrix(names, json);
+  }catch(e){
+    panel.innerHTML = `<h2>Sector composition</h2><div class="desc" style="color:var(--down);">Couldn't load sector data: ${e.message}</div>`;
+  }
+}
+
+function renderSectorMatrix(names, json){
+  const panel = document.getElementById("sectorPanel");
+  const results = json.results || {};
+  const usable = names.filter(n => results[n] && !results[n].error);
+  const unusable = names.filter(n => !usable.includes(n));
+
+  if(!usable.length){
+    panel.innerHTML = `<h2>Sector composition</h2><div class="desc">No sector data available for the selected indices (no known free constituent list for ${names.join(", ")}).</div>`;
+    return;
+  }
+
+  const allSectors = new Set();
+  usable.forEach(n => results[n].breakdown.forEach(b => allSectors.add(b.sector)));
+  const sectorTotals = {};
+  allSectors.forEach(s => sectorTotals[s] = usable.reduce((sum,n)=>{
+    const hit = results[n].breakdown.find(b=>b.sector===s);
+    return sum + (hit ? hit.pct : 0);
+  }, 0));
+  const sectors = [...allSectors].sort((a,b)=> sectorTotals[b]-sectorTotals[a]);
+
+  const rows = sectors.map(s=>{
+    const cells = usable.map(n=>{
+      const hit = results[n].breakdown.find(b=>b.sector===s);
+      const pct = hit ? hit.pct : 0;
+      return `<td><span class="matrix-cell-fill" style="width:${Math.max(pct,2)}px;"></span>${pct.toFixed(1)}%</td>`;
+    }).join("");
+    return `<tr><td>${s}</td>${cells}</tr>`;
+  }).join("");
+
+  panel.innerHTML = `
+    <h2>Sector composition</h2>
+    <div class="desc">${json.methodology || ""}</div>
+    <div class="matrix-wrap">
+      <table><thead><tr><th>Sector</th>${usable.map(n=>`<th>${n}</th>`).join("")}</tr></thead>
+      <tbody>${rows}</tbody></table>
+    </div>
+    ${unusable.length ? `<div class="note">No constituent list available for: ${unusable.join(", ")}.</div>` : ""}`;
+}
+
+/* =========================================================================
+   PANEL: top companies (horizontal bar — growth & revenue)
+   ========================================================================= */
+let topCompanyCharts = {};
+
+async function loadTopCompanies(names){
+  const panel = document.getElementById("topCompaniesPanel");
+  try{
+    const res = await fetch(`${API_BASE}/api/top-companies?indices=${encodeURIComponent(names.join(","))}&n=10`);
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    renderTopCompanies(names, json);
+  }catch(e){
+    panel.innerHTML = `<h2>Top constituent companies</h2><div class="desc" style="color:var(--down);">Couldn't load company data: ${e.message}</div>`;
+  }
+}
+
+function renderTopCompanies(names, json){
+  const panel = document.getElementById("topCompaniesPanel");
+  const results = json.results || {};
+  const usable = names.filter(n => results[n] && results[n].companies && results[n].companies.length);
+  const unusable = names.filter(n => !usable.includes(n));
+
+  if(!usable.length){
+    panel.innerHTML = `<h2>Top constituent companies</h2><div class="desc">No company-level data available for the selected indices right now.</div>`;
+    return;
+  }
+
+  panel.innerHTML = `
+    <h2>Top constituent companies</h2>
+    <div class="desc">${json.methodology || ""}</div>
+    <div class="indiv-grid" id="topCompaniesGrid"></div>
+    ${unusable.length ? `<div class="note">Unavailable for: ${unusable.join(", ")}.</div>` : ""}`;
+
+  const grid = document.getElementById("topCompaniesGrid");
+  usable.forEach(n=>{
+    const companies = results[n].companies;
+    const ix = INDICES.find(i=>i.name===n);
+    const wrapper = document.createElement("div");
+    wrapper.className = "indiv-card";
+    wrapper.style.gridColumn = "1 / -1";
+    wrapper.innerHTML = `
+      <div class="indiv-head"><span class="dot" style="background:${ix.color}"></span>${n} — top ${companies.length} by market cap</div>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:16px;">
+        <div><div class="desc" style="margin-bottom:6px;">1-Year price growth</div><div class="chart-box small"><canvas id="growth-${cssSafe(n)}"></canvas></div></div>
+        <div><div class="desc" style="margin-bottom:6px;">Revenue (₹, most recent FY)</div><div class="chart-box small"><canvas id="revenue-${cssSafe(n)}"></canvas></div></div>
+      </div>`;
+    grid.appendChild(wrapper);
+
+    const labels = companies.map(c=>c.company || c.symbol);
+    const growthData = companies.map(c=>c.growth1y!=null ? +(c.growth1y*100).toFixed(1) : null);
+    const revenueData = companies.map(c=>c.revenue!=null ? +(c.revenue/1e7).toFixed(0) : null); // ₹ Cr
+
+    const gCanvas = document.getElementById(`growth-${cssSafe(n)}`);
+    const rCanvas = document.getElementById(`revenue-${cssSafe(n)}`);
+    if(topCompanyCharts[`g-${n}`]) topCompanyCharts[`g-${n}`].destroy();
+    if(topCompanyCharts[`r-${n}`]) topCompanyCharts[`r-${n}`].destroy();
+
+    topCompanyCharts[`g-${n}`] = new Chart(gCanvas, {
+      type:"bar",
+      data:{ labels, datasets:[{ label:"1Y growth %", data:growthData, backgroundColor: ix.color, borderRadius:4 }] },
+      options: horizontalBarOptions("%")
+    });
+    topCompanyCharts[`r-${n}`] = new Chart(rCanvas, {
+      type:"bar",
+      data:{ labels, datasets:[{ label:"Revenue (₹ Cr)", data:revenueData, backgroundColor:"#A8781F", borderRadius:4 }] },
+      options: horizontalBarOptions("₹ Cr")
+    });
+  });
+}
+
+function horizontalBarOptions(xTitle){
+  return {
+    indexAxis:"y",
+    responsive:true, maintainAspectRatio:false,
+    plugins:{
+      legend:{ display:false },
+      tooltip:{ backgroundColor:"#141B26", borderColor:"#2A3446", borderWidth:1, titleColor:"#fff", bodyColor:"#D7DCE4" }
+    },
+    scales:{
+      x:{ title:{ display:true, text:xTitle, color:"#8B93A3", font:{ size:11 } }, grid:{ color:"#EBEDF2" }, ticks:{ color:"#8B93A3", font:{ family:"IBM Plex Mono", size:10 } } },
+      y:{ grid:{ display:false }, ticks:{ color:"#5C6676", font:{ family:"Inter", size:11 } } }
+    }
+  };
+}
+
+/* =========================================================================
+   INIT
+   ========================================================================= */
+renderTicker();
+renderPills();
+renderRangePresets();
+applyPreset(activePreset);
+document.getElementById("results").innerHTML = `<div class="panel"><div class="empty-state"><div class="icon">📊</div><div>Select your indices above and hit <b>Load &amp; compare</b>.</div></div></div>`;
+window.retryOne = retryOne;
+</script>
+</body>
+</html>
